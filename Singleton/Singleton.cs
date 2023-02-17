@@ -34,5 +34,7 @@ public class Singleton<T> : MonoBehaviour where T : Singleton<T>
         }
 
         Init();
+
+        DontDestroyOnLoad(this.gameObject);
     }
 }

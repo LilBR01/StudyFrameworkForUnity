@@ -1,81 +1,104 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Audio;
 
 public class AudioManager : Singleton<AudioManager>
 {
-    //存储音频信息
-    public List<AudioType> sounds = new List<AudioType>();
-    //每一个音频剪辑的名称对应一个音频组件
-    private Dictionary<string, AudioSource> audioDic = new Dictionary<string, AudioSource>();
+    private AudioSource bgm = null;
+    private float bgmValue = 1;
+    private float soundValue = 1;
+    private GameObject soundObj = null;
+    private List<AudioSource> soundList = new List<AudioSource>();
 
-    public AudioMixer mixer;
-
-    private void Awake()
+    public AudioManager()
     {
-    
+        MonoManager.Instance.AddUpdateListener(update);
     }
 
-    //生成音频并初始化
-    private void Start()
+    private void update()
     {
-        foreach(var sound in sounds)
+        for(int i = soundList.Count-1; i>= 0; i--)
         {
-            GameObject obj = new GameObject(sound.clip.name);
-            obj.transform.SetParent(transform);
-
-            AudioSource source = obj.AddComponent<AudioSource>();
-            source.clip = sound.clip;
-            source.playOnAwake = sound.playOnAwake;
-            source.loop = sound.loop;
-            source.volume = sound.volume;
-            source.outputAudioMixerGroup = sound.outputGroup;
-
-            if(sound.playOnAwake)
-                source.Play();
-            
-            audioDic.Add(sound.clip.name, source);
+            if(!soundList[i].isPlaying)
+            {
+                GameObject.Destroy(soundList[i]);
+                soundList.RemoveAt(i);
+            }
         }
     }
 
-    //播放音频
-    public static void PlayAudio(string name, bool isWait = false)
+    public void PlayBgm(string name)
     {
-        if(Instance.audioDic.ContainsKey(name))
+        if(bgm == null)
         {
-            Debug.LogWarning($"名为{name}音频不存在");
+            GameObject obj = new GameObject("bgm");
+            bgm = obj.AddComponent<AudioSource>();
         }
 
-        if(isWait)
+        ResourceManager.Instance.LoadAsyn<AudioClip>("Music/bgm/"+name, (clip)=>{
+            bgm.clip = clip;
+            bgm.loop = true;
+            bgm.volume = bgmValue;
+            bgm.Play();
+        });
+    }
+
+    public void ChangeBgmValue(float v)
+    {
+        bgmValue = v;
+        if(bgm == null) return;
+        bgm.volume = bgmValue;
+    }
+
+    public void PauseBgm() 
+    {
+        if (bgm == null) return;
+        bgm.Pause();
+    }
+
+    public void StopBgm()
+    {
+        if (bgm == null) return;
+        bgm.Stop();
+    }
+
+    public void PlaySound(string name,bool isLoop,UnityAction<AudioSource> callback=null)
+    {
+        if(soundObj == null)
         {
-            if(Instance.audioDic[name].isPlaying)
-                Instance.audioDic[name].Play();
+            soundObj = new GameObject();
+            soundObj.name = "Sound";
         }
-        else
-            Instance.audioDic[name].Play();
-    }
-
-    //停止音频
-    public static void StopAudio(string name)
-    {
-        if(Instance.audioDic.ContainsKey(name))
+        AudioSource source = soundObj.AddComponent<AudioSource>();
+        ResourceManager.Instance.LoadAsyn<AudioClip>("Music/Sounds/"+name, (clip)=>
         {
-            Debug.LogWarning($"名为{name}音频不存在");
+            source.clip = clip;
+            source.loop = isLoop;
+            source.volume = soundValue;
+            source.Play();
+            soundList.Add(source);
+            if (callback != null)   callback(source);
+        });
+    }
+
+    public void ChangeSoundValue(float value)
+    {
+        soundValue = value;
+        for (int i = 0; i < soundList.Count; ++i)
+        {
+            soundList[i].volume = value;
         }
-
-        Instance.audioDic[name].Stop();
     }
 
-    //调整背景音乐音量
-    public void SetBGMVolume(float value)
+    public void StopSound(AudioSource source)
     {
-        mixer.SetFloat("BGM", value);
-    }
-
-    //调整音效音量
-    public void SetSFXVolume(float value)
-    {
-        mixer.SetFloat("SFX", value);
+        if (soundList.Contains(source))
+        {
+            soundList.Remove(source);
+            source.Stop();
+            GameObject.Destroy(source);
+        }
     }
 }
