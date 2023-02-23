@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+//继承mono的单例类
 public class Singleton<T> : MonoBehaviour where T : Singleton<T>
 {
     private static T instance;
