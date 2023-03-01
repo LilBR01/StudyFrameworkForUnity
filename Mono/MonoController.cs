@@ -15,7 +15,9 @@ public class MonoController : MonoBehaviour
     private void Update()
     {
         if(updateEvent != null)
+        {
             updateEvent();
+        }
     }
 
     public void AddUpdateListener(UnityAction func)
